@@ -3,7 +3,7 @@
 
 [tool.poetry]
 name = "kilroy-module-client-py-sdk"
-version = "0.1.0"
+version = "0.2.0"
 description = "SDK for kilroy module clients in Python 🧰"
 readme = "kilroy_module_client_py_sdk/README.md"
 authors = ["kilroy <kilroymail@pm.me>"]
@@ -15,6 +15,9 @@ packages = [{ include = "kilroy-module-client-py-sdk", from = "kilroy_module_cli
 
 [tool.poetry.dependencies]
 python = "^3.9"
+kilroy-ws-client-py-sdk = "^0.4"
+pydantic = "^1.9"
+jsonschema = "^4.7"
 
 # dev
 
