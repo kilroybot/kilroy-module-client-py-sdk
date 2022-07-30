@@ -1,11 +1,7 @@
 import json
 from typing import AsyncIterable, Iterable, Type, TypeVar, Union
 
-from kilroy_ws_client_py_sdk import Client, JSON
-from kilroy_ws_client_py_sdk.utils import asyncify
-from pydantic import BaseModel
-
-from kilroy_module_client_py_sdk.models import (
+from kilroy_module_py_shared import (
     Config,
     ConfigNotification,
     ConfigSchema,
@@ -25,6 +21,9 @@ from kilroy_module_client_py_sdk.models import (
     StepReply,
     StepRequest,
 )
+from kilroy_ws_client_py_sdk import Client, JSON
+from kilroy_ws_py_shared import asyncify
+from pydantic import BaseModel
 
 M = TypeVar("M", bound=BaseModel)
 
