@@ -1,5 +1,5 @@
 from kilroy_module_client_py_sdk.client import ModuleClient
-from kilroy_module_client_py_sdk.models import (
+from kilroy_module_py_shared import (
     Config,
     ConfigNotification,
     ConfigSchema,
