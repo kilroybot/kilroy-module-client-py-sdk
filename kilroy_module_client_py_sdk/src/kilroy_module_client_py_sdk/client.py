@@ -358,10 +358,10 @@ class ModuleService:
         return json.loads(response.config)
 
     async def generate(
-        self, quantity: int = 1, *args, **kwargs
+        self, quantity: int = 1, dry: bool = False, *args, **kwargs
     ) -> AsyncIterator[Tuple[UUID, Dict[str, Any]]]:
         async for response in self._stub.generate(
-            GenerateRequest(quantity=quantity), *args, **kwargs
+            GenerateRequest(quantity=quantity, dry=dry), *args, **kwargs
         ):
             yield UUID(response.post.id), json.loads(response.post.content)
 
