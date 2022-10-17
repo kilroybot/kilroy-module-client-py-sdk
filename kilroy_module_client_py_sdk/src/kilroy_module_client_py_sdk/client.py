@@ -49,6 +49,8 @@ from kilroy_module_py_shared import (
     WatchMetricsResponse,
     WatchStatusRequest,
     WatchStatusResponse,
+    ResetRequest,
+    ResetResponse,
 )
 
 from kilroy_module_client_py_sdk.metrics import MetricConfig, MetricData
@@ -300,6 +302,23 @@ class ModuleServiceStub(betterproto.ServiceStub):
         ):
             yield response
 
+    async def reset(
+        self,
+        reset_request: "ResetRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "ResetResponse":
+        return await self._unary_unary(
+            "/kilroy.module.v1alpha.ModuleService/Reset",
+            reset_request,
+            ResetResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
 
 class ModuleService:
     def __init__(self, *args, **kwargs) -> None:
@@ -431,3 +450,6 @@ class ModuleService:
                 dataset_id=response.dataset_id,
                 data=json.loads(response.data),
             )
+
+    async def reset(self, *args, **kwargs) -> None:
+        await self._stub.reset(ResetRequest(), *args, **kwargs)
