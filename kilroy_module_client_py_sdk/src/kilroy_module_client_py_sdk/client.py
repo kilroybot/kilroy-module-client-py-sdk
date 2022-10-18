@@ -434,6 +434,7 @@ class ModuleService:
             MetricConfig(
                 id=metric.id,
                 label=metric.label,
+                group=metric.group,
                 config=json.loads(metric.config),
             )
             for metric in response.configs
