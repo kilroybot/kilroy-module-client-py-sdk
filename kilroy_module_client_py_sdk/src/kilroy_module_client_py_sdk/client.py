@@ -308,7 +308,7 @@ class ModuleServiceStub(betterproto.ServiceStub):
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
+        metadata: Optional["MetadataLike"] = None,
     ) -> "ResetResponse":
         return await self._unary_unary(
             "/kilroy.module.v1alpha.ModuleService/Reset",
