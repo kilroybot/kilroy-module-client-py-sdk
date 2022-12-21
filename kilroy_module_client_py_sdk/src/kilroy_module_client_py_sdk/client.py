@@ -10,17 +10,14 @@ from typing import (
     Tuple,
     Union,
 )
-from uuid import UUID
 
 import betterproto
 from aiostream import stream
 from betterproto.grpc.grpclib_client import MetadataLike
 from grpclib.metadata import Deadline
+
+from kilroy_module_client_py_sdk.metrics import MetricConfig, MetricData
 from kilroy_module_py_shared import (
-    FitPostsRequest,
-    FitPostsResponse,
-    FitScoresRequest,
-    FitScoresResponse,
     GenerateRequest,
     GenerateResponse,
     GetConfigRequest,
@@ -36,13 +33,9 @@ from kilroy_module_py_shared import (
     GetStatusRequest,
     GetStatusResponse,
     Metadata,
-    PostScore,
-    RealPost,
     SetConfigRequest,
     SetConfigResponse,
     Status,
-    StepRequest,
-    StepResponse,
     WatchConfigRequest,
     WatchConfigResponse,
     WatchMetricsRequest,
@@ -51,9 +44,13 @@ from kilroy_module_py_shared import (
     WatchStatusResponse,
     ResetRequest,
     ResetResponse,
+    SaveRequest,
+    SaveResponse,
+    FitSupervisedRequest,
+    FitSupervisedResponse,
+    FitReinforcedRequest,
+    FitReinforcedResponse,
 )
-
-from kilroy_module_client_py_sdk.metrics import MetricConfig, MetricData
 
 
 class ModuleServiceStub(betterproto.ServiceStub):
@@ -213,55 +210,43 @@ class ModuleServiceStub(betterproto.ServiceStub):
         ):
             yield response
 
-    async def fit_posts(
+    async def fit_supervised(
         self,
-        fit_posts_request_iterator: Union[
-            AsyncIterable["FitPostsRequest"], Iterable["FitPostsRequest"]
+        fit_supervised_request_iterator: Union[
+            AsyncIterable["FitSupervisedRequest"],
+            Iterable["FitSupervisedRequest"],
         ],
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None,
-    ) -> "FitPostsResponse":
+    ) -> "FitSupervisedResponse":
         return await self._stream_unary(
-            "/kilroy.module.v1alpha.ModuleService/FitPosts",
-            fit_posts_request_iterator,
-            FitPostsRequest,
-            FitPostsResponse,
+            "/kilroy.module.v1alpha.ModuleService/FitSupervised",
+            fit_supervised_request_iterator,
+            FitSupervisedRequest,
+            FitSupervisedResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
         )
 
-    async def fit_scores(
+    async def fit_reinforced(
         self,
-        fit_scores_request: "FitScoresRequest",
+        fit_reinforced_request_iterator: Union[
+            AsyncIterable["FitReinforcedRequest"],
+            Iterable["FitReinforcedRequest"],
+        ],
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None,
-    ) -> "FitScoresResponse":
-        return await self._unary_unary(
-            "/kilroy.module.v1alpha.ModuleService/FitScores",
-            fit_scores_request,
-            FitScoresResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def step(
-        self,
-        step_request: "StepRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> "StepResponse":
-        return await self._unary_unary(
-            "/kilroy.module.v1alpha.ModuleService/Step",
-            step_request,
-            StepResponse,
+    ) -> "FitReinforcedResponse":
+        return await self._stream_unary(
+            "/kilroy.module.v1alpha.ModuleService/FitReinforced",
+            fit_reinforced_request_iterator,
+            FitReinforcedRequest,
+            FitReinforcedResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -314,6 +299,23 @@ class ModuleServiceStub(betterproto.ServiceStub):
             "/kilroy.module.v1alpha.ModuleService/Reset",
             reset_request,
             ResetResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def save(
+        self,
+        save_request: "SaveRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> "SaveResponse":
+        return await self._unary_unary(
+            "/kilroy.module.v1alpha.ModuleService/Save",
+            save_request,
+            SaveResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -377,53 +379,58 @@ class ModuleService:
         return json.loads(response.config)
 
     async def generate(
-        self, quantity: int = 1, dry: bool = False, *args, **kwargs
-    ) -> AsyncIterator[Tuple[UUID, Dict[str, Any]]]:
+        self, quantity: int = 1, *args, **kwargs
+    ) -> AsyncIterator[Tuple[Dict[str, Any], Dict[str, Any]]]:
         async for response in self._stub.generate(
-            GenerateRequest(quantity=quantity, dry=dry), *args, **kwargs
+            GenerateRequest(quantity=quantity), *args, **kwargs
         ):
-            yield UUID(response.post.id), json.loads(response.post.content)
+            yield json.loads(response.content), json.loads(response.metadata)
 
-    async def fit_posts(
+    async def fit_supervised(
         self,
-        posts: Union[
+        data: Union[
             AsyncIterable[Tuple[Dict[str, Any], float]],
             Iterable[Tuple[Dict[str, Any], float]],
         ],
         *args,
         **kwargs,
     ) -> None:
-        async with stream.iterate(posts).stream() as posts:
+        async def __to_requests(
+            _data: AsyncIterable[Tuple[Dict[str, Any], float]]
+        ) -> AsyncIterable[FitSupervisedRequest]:
+            async for post, score in _data:
+                yield FitSupervisedRequest(
+                    content=json.dumps(post), score=score
+                )
 
-            async def to_requests():
-                async for post, score in posts:
-                    yield FitPostsRequest(
-                        post=RealPost(content=json.dumps(post), score=score)
-                    )
+        async with stream.iterate(data).stream() as data:
+            await self._stub.fit_supervised(
+                __to_requests(data), *args, **kwargs
+            )
 
-            await self._stub.fit_posts(to_requests(), *args, **kwargs)
-
-    async def fit_scores(
+    async def fit_reinforced(
         self,
-        scores: Union[
-            AsyncIterable[Tuple[UUID, float]],
-            Iterable[Tuple[UUID, float]],
+        data: Union[
+            AsyncIterable[Tuple[Dict[str, Any], Dict[str, Any], float]],
+            Iterable[Tuple[Dict[str, Any], Dict[str, Any], float]],
         ],
         *args,
         **kwargs,
     ) -> None:
-        async with stream.iterate(scores).stream() as scores:
-            request = FitScoresRequest(
-                scores=[
-                    PostScore(id=str(uid), score=score)
-                    async for uid, score in scores
-                ]
+        async def __to_requests(
+            _data: AsyncIterable[Tuple[Dict[str, Any], Dict[str, Any], float]]
+        ) -> AsyncIterable[FitReinforcedRequest]:
+            async for content, metadata, score in _data:
+                yield FitReinforcedRequest(
+                    content=json.dumps(content),
+                    metadata=json.dumps(metadata),
+                    score=score,
+                )
+
+        async with stream.iterate(data).stream() as data:
+            await self._stub.fit_reinforced(
+                __to_requests(data), *args, **kwargs
             )
-
-            await self._stub.fit_scores(request, *args, **kwargs)
-
-    async def step(self, *args, **kwargs) -> None:
-        await self._stub.step(StepRequest(), *args, **kwargs)
 
     async def get_metrics_config(self, *args, **kwargs) -> List[MetricConfig]:
         response = await self._stub.get_metrics_config(
@@ -434,8 +441,8 @@ class ModuleService:
             MetricConfig(
                 id=metric.id,
                 label=metric.label,
-                group=metric.group,
                 config=json.loads(metric.config),
+                tags=metric.tags,
             )
             for metric in response.configs
         ]
@@ -454,3 +461,6 @@ class ModuleService:
 
     async def reset(self, *args, **kwargs) -> None:
         await self._stub.reset(ResetRequest(), *args, **kwargs)
+
+    async def save(self, *args, **kwargs) -> None:
+        await self._stub.save(SaveRequest(), *args, **kwargs)
